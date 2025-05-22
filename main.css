@@ -27,16 +27,6 @@ a {
 
 
 
-#experimental {
-  display: none;
-  font-size: 1em;
-
-  position: relative;
-  animation: float-left 80s infinite linear;
-  white-space: nowrap;
-
-}
-
 @keyframes float-left {
   0% {
     transform: translateX(100%);
