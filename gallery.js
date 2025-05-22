@@ -39,7 +39,7 @@ const params = {
   canSeeGizmo: false,
   transControlsMode: "rotate",
   heightOffset: new Vector3(0, 0.93, 0),// offset the camera from the visitor
-  archiveModelPath:  "/models/cipriani_interior.glb",
+  archiveModelPath: "/models/cipriani_interior.glb",
   enablePostProcessing: true,
   isLowEndDevice: false,//navigator.hardwareConcurrency <= 4,
   transitionAnimate: true,
@@ -129,7 +129,7 @@ joystick.onDirectionChange((data) => {
 });
 
 
-console.log("isLowEndDevice: ", params.isLowEndDevice);
+//console.log("isLowEndDevice: ", params.isLowEndDevice);
 
 //
 const fadeOutEl = (el) => {
@@ -462,147 +462,109 @@ function init() {
   let startY = 0; // Start Y position of pointer
   const MOVE_THRESHOLD = 5; // Pixels of movement to consider a drag
 
-  const onPointerDown = (event) => {
-    event.preventDefault(); // Prevent default behavior like highlighting on touch
+  // Outside your handler, at module scope:
+  let lastTapTime = 0;
+  const DOUBLE_TAP_THRESHOLD = 300; // ms
 
-    // Record the starting pointer position
+  const onPointerDown = (event) => {
+    event.preventDefault(); // Prevent text‐selection, etc.
+
+    // Record the starting pointer position for drag detection
     startX = event.clientX;
     startY = event.clientY;
-    isDragging = false; // Reset dragging flag
+    isDragging = false;
 
-    isPressing = true;
+    const now = performance.now();
+    const timeSinceLastTap = now - lastTapTime;
+    lastTapTime = now;
 
-    // Start a timer for detecting a long press
-    pressTimeout = setTimeout(() => {
-      if (!isPressing || isDragging) return; // Cancel if dragging
-
-      // Process the long press action
-      const { clientX, clientY } = event;
-      pointer.x = (clientX / window.innerWidth) * 2 - 1;
-      pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+    // If this tap follows the last one quickly, and no drag→double‐press!
+    if (timeSinceLastTap < DOUBLE_TAP_THRESHOLD && !isDragging) {
+      // Convert screen coords to normalized device coords
+      const pointer = new Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1
+      );
 
       raycaster.setFromCamera(pointer, camera);
       raycaster.firstHitOnly = true;
 
       const intersects = raycaster.intersectObjects(visitor.mainScene.children);
-
       const validTypes = ['Image', 'visitorLocation', 'Room', 'Floor', 'Video'];
 
-      const clickedObject = intersects.find(
-        (intersect) =>
-          intersect.object.userData &&
-          validTypes.includes(intersect.object.userData.type)
+      const clicked = intersects.find(
+        i => i.object.userData && validTypes.includes(i.object.userData.type)
       );
 
-      if (clickedObject && clickedObject.object.userData) {
-        switch (clickedObject.object.userData.type) {
-          case 'Image':
-            // Set image source
-            popupImage.src = clickedObject.object.userData.Map;
-            popupDescription.textContent = clickedObject.object.userData.opis;
+      if (!clicked) return;
 
-            // Reset classes for dynamic images
-            popupImage.classList.remove('horizontal', 'vertical');
+      const { type } = clicked.object.userData;
+      switch (type) {
+        case 'Image':
+          popupImage.src = clicked.object.userData.Map;
+          popupDescription.textContent = clicked.object.userData.opis;
+          popupImage.classList.remove('horizontal', 'vertical');
+          popupImage.addEventListener('load', () => {
+            const isHoriz = popupImage.naturalWidth > popupImage.naturalHeight;
+            popupImage.classList.add(isHoriz ? 'horizontal' : 'vertical');
+          });
+          popup.style.opacity = "0";
+          popup.classList.add('show');
+          popup.classList.remove('hidden');
+          setTimeout(() => { popup.style.opacity = "1"; }, 5);
+          break;
 
-            // Wait for the image to load before checking dimensions
-            popupImage.addEventListener('load', () => {
-              const isHorizontal = popupImage.naturalWidth > popupImage.naturalHeight;
-              popupImage.classList.add(isHorizontal ? 'horizontal' : 'vertical');
-            });
+        case 'Video':
+          video = document.getElementById(clicked.object.userData.elementID);
+          video.paused ? video.play() : video.pause();
+          break;
 
-            // Add fade-in effect
-            popup.style.opacity = "0"; // Start invisible
-            popup.classList.add('show'); // Add 'show' class to prepare for fade-in
-            popup.classList.remove('hidden'); // Ensure it's not hidden
+        case 'Floor':
+        case 'visitorLocation':
+        case 'Room': {
+          const { distance, point } = clicked;
+          circle = visitor.parent.getObjectByName('circle') || addPointerCircle();
+          clickedPoint.copy(point).add(new Vector3(0, 0.1, 0));
+          visitorPos.copy(visitor.position);
 
-            // Trigger fade-in using opacity
-            setTimeout(() => {
-              popup.style.opacity = "1"; // Fade to visible
-            }, 5); // Small timeout to ensure CSS transition applies
+          // Reset & start move tween
+          if (tween) tween.stop();
+          circle.position.copy(clickedPoint);
+          circle.scale.set(1, 1, 1);
+          circle.visible = true;
 
-            break;
-
-
-          case 'Video':
-            video = document.getElementById(clickedObject.object.userData.elementID);
-            video.paused ? video.play() : video.pause();
-            break;
-
-          case 'Floor':
-          case 'visitorLocation':
-          case 'Room': {
-            const { distance, point } = clickedObject;
-
-            let pulseTween;
-
-            circle = visitor.parent.getObjectByName('circle');
-            if (!circle) addPointerCircle();
-
-            clickedPoint.copy(point);
-            visitorPos.copy(visitor.position.clone());
-
-            clickedPoint.y += 0.1; // Slight offset for visibility
-
-
-
-
-
-            // Stop any existing pulseTween to prevent conflicts
-            if (pulseTween) {
-              pulseTween.stop();
-              pulseTween = null;
-            }
-
-            // Reset circle properties
-            circle.position.copy(clickedPoint);
-            circle.scale.set(1, 1, 1); // Reset scale to full size
-            circle.visible = true;
-
-            // Visitor movement tween
-            const tweenTarget = { x: visitorPos.x, z: visitorPos.z };
-            tween = new TWEEN.Tween(tweenTarget)
-              .to({ x: clickedPoint.x, z: clickedPoint.z }, (distance * 1000) / params.visitorSpeed)
-              .onUpdate(({ x, z }) => {
-
-                visitor.position.set(x, visitor.position.y, z);
-                visitor.updateMatrixWorld();
-              })
-              .onComplete(() => {
-                circle.visible = false; // Hide circle after movement completes
-                tween = null; // Clear tween reference
-                pulseTween = null; // Clear pulseTween reference
-              });
-
-            tween.start();
-
-            // Pulse animation for circle
-            pulseTween = new TWEEN.Tween({ scale: 1 })
-              .to({ scale: 0.4 }, 600)
-              .repeat(Infinity)
-              .yoyo(true)
-              .easing(TWEEN.Easing.Quadratic.InOut) // Smooth easing for scaling
-              .onUpdate(({ scale }) => {
-
-                console.log('Active tweens:', TWEEN.getAll().length);
-
-                circle.scale.set(scale, scale, scale); // Update circle scale
-              })
-              .onStop(() => {
-                circle.visible = false; // Ensure the circle is hidden on stop
-                pulseTween = null; // Clear pulseTween reference
-              });
-
-            pulseTween.start();
-            break;
-          }
-
-
-          default:
-            break;
+          const tweenTarget = { x: visitorPos.x, z: visitorPos.z };
+          tween = new TWEEN.Tween(tweenTarget)
+            .to({ x: clickedPoint.x, z: clickedPoint.z }, (distance * 1000) / params.visitorSpeed)
+            .onUpdate(({ x, z }) => {
+              visitor.position.set(x, visitor.position.y, z);
+              visitor.updateMatrixWorld();
+            })
+            .onComplete(() => {
+              circle.visible = false;
+              tween = null;
+            })
+            .start();
+/*
+          // Pulse animation
+          if (pulseTween) pulseTween.stop();
+          pulseTween = new TWEEN.Tween({ scale: 1 })
+            .to({ scale: 0.4 }, 600)
+            .repeat(Infinity).yoyo(true)
+            .easing(TWEEN.Easing.Quadratic.InOut)
+            .onUpdate(({ scale }) => circle.scale.set(scale, scale, scale))
+            .start();
+            */
+          break;
         }
+
+        default:
+          break;
       }
-    }, 300); // Adjust as needed
+    }
+    // else: it was just the first tap — no action yet, wait for the next tap
   };
+
 
 
 
@@ -808,7 +770,7 @@ function init() {
         control.setMode("rotate");
         break;
       case "t":
-       // control.setMode("scale");
+        // control.setMode("scale");
         break;
       case "Escape":
         control.reset();
@@ -987,12 +949,12 @@ function addVisitorMapCircle() {
 
 function addPointerCircle() {
   /// circle (pointer)
-  circle = new Group();
+  const circle = new Group();
   circle.name = 'circle'
   circle.position.copy(visitor.position);
   circle.position.y = -30;
 
-  circleYellow = new Mesh(
+  const circleYellow = new Mesh(
     new RingGeometry(0.1, 0.12, 32),
     new MeshBasicMaterial({
       color: 0xffcc00,
@@ -1004,7 +966,7 @@ function addPointerCircle() {
   circleYellow.rotation.x = (90 * Math.PI) / 180;
   circleYellow.name = "circleYellow";
 
-  circleBlue = new Mesh(
+  const circleBlue = new Mesh(
     new RingGeometry(0.12, 0.14, 32),
     new MeshBasicMaterial({
       color: 0x0066cc,
@@ -1017,6 +979,8 @@ function addPointerCircle() {
   circle.add(circleYellow);
   circle.add(circleBlue);
   visitor.parent.add(circle);
+
+  return circle;
 }
 
 //

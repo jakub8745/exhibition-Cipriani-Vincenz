@@ -118,7 +118,7 @@ class ModelLoader {
 
                 const percentComplete = Math.round((xhr.loaded / xhr.total) * 100);
 
-                console.log(`Loading model ${currentModel}/${totalModels}: ${percentComplete}%`);
+                //console.log(`Loading model ${currentModel}/${totalModels}: ${percentComplete}%`);
                 progressText.textContent = `Loading model ${currentModel}/${totalModels}: ${percentComplete}%`;
             }
         };

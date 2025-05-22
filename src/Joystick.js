@@ -11,18 +11,22 @@ class JoyStick {
     this.directionChangeCallback = null;
 
     // Bind event listeners
-    this.canvas.addEventListener("mousedown", this.start.bind(this));
-    this.canvas.addEventListener("touchstart", this.start.bind(this));
-    window.addEventListener("mouseup", this.end.bind(this));  // Global listener
-    window.addEventListener("touchend", this.end.bind(this));  // Global listener
-    this.canvas.addEventListener("mousemove", this.move.bind(this));
-    this.canvas.addEventListener("touchmove", this.move.bind(this));
+    this.canvas.classList.add('joystick');      // so you get any CSS you wrote
+    this.canvas.style.cursor = 'grab';          // show it's draggable
+
+    this.canvas.addEventListener('pointerdown', this.start.bind(this));
+    this.canvas.addEventListener('pointermove', this.move.bind(this));
+    this.canvas.addEventListener('pointerup', this.end.bind(this));
+    this.canvas.addEventListener('pointerleave', this.end.bind(this));
+
 
     this.active = false;
     this.drawJoystick();
   }
 
   start(event) {
+    event.preventDefault();
+
     this.active = true;
     this.move(event);
   }
@@ -36,6 +40,8 @@ class JoyStick {
   }
 
   move(event) {
+    event.preventDefault();
+
     if (!this.active) return;
 
     const rect = this.canvas.getBoundingClientRect();
