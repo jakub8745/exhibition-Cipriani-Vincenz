@@ -10,7 +10,6 @@ dist/
 
 # npm / yarn / pnpm dependencies and lockfiles
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 BluePointArt_Archive.code-workspace
@@ -21,6 +20,4 @@ BluePointArt_Archive.code-workspace
 # Editor and system-specific files
 .DS_Store
 Thumbs.db
-
-huj.txt
 

@@ -42,13 +42,13 @@ export function disposeSceneObjects(scene) {
   }
 
   export class AudioHandler {
-    constructor() {
-      this.audioObjects = [];
+    constructor(audioObjects = []) {
+      this.audioObjects = audioObjects;
     }
     handleAudio(audioToTurn) {
 
       console.log("audioToTurn", audioToTurn);
-      if (!audioToTurn || audioToTurn.type !== "Audio") {
+      if (!audioToTurn || !(audioToTurn.isAudio || audioToTurn.isPositionalAudio || audioToTurn.type === "Audio" || audioToTurn.type === "PositionalAudio")) {
         this.pauseAllAndUpdateIcons();
         return;
       }
@@ -58,11 +58,17 @@ export function disposeSceneObjects(scene) {
   
       if (isPlaying) {
         audioOn.src = "/icons/audioMuted.png";
-        audioToTurn.stop();
+        if (typeof audioToTurn.stop === "function") {
+          audioToTurn.stop();
+        } else if (typeof audioToTurn.pause === "function") {
+          audioToTurn.pause();
+        }
 
       } else {
 
-        audioToTurn.play();
+        if (typeof audioToTurn.play === "function") {
+          audioToTurn.play();
+        }
         audioOn.src = "/icons/audioButton.png";
         this.removeAudioPlayOverlay();
       }
@@ -71,9 +77,13 @@ export function disposeSceneObjects(scene) {
     pauseAllAndUpdateIcons() {
       for (const el of this.audioObjects) {
   
-        if (!el.children[0]) return
-  
-        el.children[0].pause();
+        if (el?.isPositionalAudio && typeof el.pause === "function") {
+          el.pause();
+          continue;
+        }
+        if (el?.children?.[0] && typeof el.children[0].pause === "function") {
+          el.children[0].pause();
+        }
       }
       const audioOn = document.querySelector("#audio-on");
       audioOn.src = "/icons/audioMuted.png";
@@ -91,7 +101,7 @@ export function disposeSceneObjects(scene) {
 
 
 
-  export function handleAudio(intersectedFloor, audioHandler) {
+  export function handleAudio(intersectedFloor, audioHandler, audioObjects = []) {
     if (intersectedFloor.userData.audioToPlay) {
       audioHandler.handleAudio(null);
   
@@ -107,8 +117,9 @@ export function disposeSceneObjects(scene) {
       audioOn.addEventListener("animationend", animationEndListener);
   
       for (const el of audioObjects) {
-        if (el.children[0].name === intersectedFloor.userData.audioToPlay) {
-          audioHandler.handleAudio(el.children[0]);
+        const audioEl = el?.isPositionalAudio ? el : el?.children?.[0];
+        if (audioEl?.name === intersectedFloor.userData.audioToPlay) {
+          audioHandler.handleAudio(audioEl);
         }
       }
     } else {

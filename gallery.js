@@ -76,6 +76,7 @@ intersectedFloor0.name = "FloorOut";
 
 const lightsToTurn = [];
 const audioObjects = [];
+const audioHandler = new AudioHandler(audioObjects);
 const visitorEnter = new Vector3(5, 5, 5);
 
 const pointer = new Vector2();
@@ -448,7 +449,10 @@ function init() {
 
       console.log('floorChecker', el);
 
-      const audioHandler = new AudioHandler();
+      if (!el?.userData?.audioToPlay) {
+        audioHandler.handleAudio(null);
+        return;
+      }
       audioHandler.handleAudio(visitor.parent.getObjectByName(el.userData.audioToPlay));
     });
 
@@ -688,6 +692,7 @@ function init() {
 
   // Popup DOM elements
   const popup = document.querySelector('.modal-overlay');
+  const modalOverlay = document.getElementById('modalOverlay');
   const closeBtn = document.querySelector('.modal-close');
   const popupImage = document.querySelector('.modal img');
   const popupDescription = document.querySelector('.modal-description');
@@ -1014,5 +1019,3 @@ function preloadTextures() {
 
   return textureCache; // Return the cache for further use
 }
-
-

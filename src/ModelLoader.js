@@ -152,7 +152,9 @@ class ModelLoader {
     processExhibitObjects(exhibitObjects) {
         exhibitObjects.traverse((object) => {
             if (object.isMesh) {
-                object.wireframe = true;
+                if (object.material) {
+                    object.material.wireframe = true;
+                }
                 object.material.transparent = true;
                 object.material.opacity = 0.0;
                 object.interactive = true;
@@ -204,10 +206,10 @@ class ModelLoader {
         const mergedGeometry = staticGenerator.generate();
         mergedGeometry.boundsTree = new MeshBVH(mergedGeometry, { lazyGeneration: false });
 
-        const collider = new Mesh(mergedGeometry);
-        collider.material.wireframe = true;
-        collider.material.opacity = 0;
-        collider.material.transparent = true;
+        const collider = new Mesh(
+            mergedGeometry,
+            new MeshBasicMaterial({ wireframe: true, opacity: 0, transparent: true })
+        );
         collider.name = "collider";
         collider.visible = false;
 
@@ -318,8 +320,6 @@ class ModelLoader {
                 labelObject.position.set(10, 0, -5);
                 cClone.add(labelObject);
             }
-
-            sceneMap.add(cClone);
 
         }
     }
